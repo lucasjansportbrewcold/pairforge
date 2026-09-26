@@ -21,7 +21,7 @@ const parity = (s) => {
 // extension, dots replaced by underscores.
 export function fileBase(file) {
   if (!file) return '';
-  const base = file.split(/[\/]/).pop();
+  const base = file.split(/[\\/]/).pop();
   return base.replace(/\.[^.]*$/, '').replace(/\./g, '_');
 }
 

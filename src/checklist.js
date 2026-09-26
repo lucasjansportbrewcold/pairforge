@@ -29,9 +29,12 @@ export function checklist(result, eol = '\r\n') {
   const { round, pairs, bye, players } = result;
   const listed = players.filter((p) => p.present);
   const idW = Math.max(2, ...players.map((p) => String(p.id).length));
-  const ptsW = Math.max(3, ...players.map((p) => formatScore(p.score).length));
+  // wide enough for the maximum possible score
+  const maxScore = (round - 1) * Math.round((result.maxPerRound ?? 1) * SCALE);
+  const ptsW = Math.max(formatScore(maxScore).length, ...players.map((p) => formatScore(p.score).length));
   const hist = round - 1;
-  const gW = Math.max(3, idW);
+  const histW = Math.max(1, hist);
+  const gW = (k) => Math.max(`G-${k}`.length, idW);
   const cur = new Map();
   for (const [w, b] of pairs) {
     cur.set(w.id, `(${b.id}W)`);
@@ -39,8 +42,8 @@ export function checklist(result, eol = '\r\n') {
   }
   if (bye) cur.set(bye.id, '(pab)');
 
-  let head = `${lpad('ID', idW)}\t${lpad('Pts', ptsW)}\t ${'-'.repeat(hist)}\tPref\t-1R\t-2R\t${lpad('Cur', idW + 3)}\t`;
-  for (let k = hist; k >= 1; k--) head += `${lpad(`G-${k}`, gW)}\t`;
+  let head = `${lpad('ID', idW)}\t${lpad('Pts', ptsW)}\t ${'-'.repeat(histW)}\tPref\t-1R\t-2R\t${lpad('Cur', idW + 3)}\t`;
+  for (let k = hist; k >= 1; k--) head += `${lpad(`G-${k}`, gW(k))}\t`;
 
   const sorted = listed.slice().sort((a, b) => (b.score - a.score) || (a.pn - b.pn));
   const groups = [];
@@ -49,7 +52,7 @@ export function checklist(result, eol = '\r\n') {
     groups[groups.length - 1].push(p);
   }
   const row = (p) => {
-    let s = `${lpad(p.id, idW)}\t${lpad(formatScore(p.score), ptsW)}\t ${lpad(p.colors, hist)}\t`;
+    let s = `${lpad(p.id, idW)}\t${lpad(formatScore(p.score), ptsW)}\t ${lpad(p.colors, histW)}\t`;
     s += `${lpad(prefLabel(p), 4)}\t ${floatLabel(p.float1)} \t ${floatLabel(p.float2)} \t`;
     s += `${lpad(cur.get(p.id) || '', idW + 3)}\t`;
     const opps = [];
@@ -57,7 +60,7 @@ export function checklist(result, eol = '\r\n') {
     const last = opps.slice(-hist);
     const cols = new Array(hist - last.length).fill('').concat(last.map(String));
     if (!p.canGetBye && hist > 0) cols[0] = '[X]';
-    for (const c of cols) s += `${lpad(c, gW)}\t`;
+    cols.forEach((c, i) => { s += `${lpad(c, gW(hist - i))}\t`; });
     return s;
   };
   let out = '﻿' + head + eol + eol;

@@ -23,6 +23,7 @@ export class Tournament {
   get name() { return (this.data.headers.get('012') || '').trim(); }
 
   acceleration(id, round) {
+    if (this.override && this.override.round === round) return this.override.points.get(id) || 0;
     const a = this.data.acceleration.get(id);
     return a && a[round - 1] ? toUnits(a[round - 1]) : 0;
   }
@@ -95,9 +96,43 @@ export class Tournament {
     return initialColourIsWhite(this.data);
   }
 
+  // Is the player to be paired in `round`? (checking: the round has been played)
+  isPresent(rec, round, checking) {
+    const g = rec.games[round - 1];
+    if (checking) return !!g && (g.opp > 0 || g.code === 'U');
+    return !this.data.absent.has(rec.id) && !(g && g.opp === 0 && !g.isBlank);
+  }
+
+  // Baku Acceleration Method (old C.04.5.1), applied to the round being paired
+  // only (earlier rounds rely on the XXA records): in tournaments of at least
+  // nine rounds, the players of group A get 1 virtual point in rounds 1-3 and
+  // 0.5 in rounds 4-5. Group A: the first half (rounded up to an even number)
+  // of the participants of round 1, extended to every player with a pairing
+  // number up to the last of them. Standard scoring only.
+  bakuPoints(round, opts) {
+    const R = opts.total ?? this.totalRounds(round);
+    const ww = this.scoring.get('WW');
+    const bw = this.scoring.get('BW');
+    if (R < 9 || ww !== 1 || bw !== 1) return null;
+    const points = new Map();
+    if (round <= 5) {
+      const value = toUnits(round <= 3 ? 1 : 0.5);
+      const inRound1 = round === 1
+        ? (r) => this.isPresent(r, 1, opts.checking)
+        : (r) => this.isPresent(r, 1, true);
+      const first = this.data.players.filter(inRound1).map((r) => this.pnOf(r)).sort((a, b) => a - b);
+      let ga = Math.ceil(first.length / 2);
+      if (ga % 2 === 1) ga++;
+      const limit = first.length ? first[Math.min(ga, first.length) - 1] : 0;
+      for (const r of this.data.players) if (this.pnOf(r) <= limit) points.set(r.id, value);
+    }
+    return { round, points };
+  }
+
   // Pairs round `round` (default: the next one). Returns
   // { round, pairs: [[white, black]] (Player), bye: Player|null, players }
   pair(round = this.played + 1, opts = {}) {
+    this.override = opts.baku ? this.bakuPoints(round, opts) : null;
     const { players, lastRound } = this.state(round, opts);
     const present = players.filter((p) => p.present);
     const presentIds = new Set(present.map((p) => p.id));
@@ -110,7 +145,7 @@ export class Tournament {
       noFastPath: opts.noFastPath || process.env.JAVAFO_NOFAST === "1",
     });
     const pairs = sortBoards(res.pairs);
-    return { round, pairs, bye: res.bye, players, lastRound };
+    return { round, pairs, bye: res.bye, players, lastRound, maxPerRound: this.scoring.maxPerRound };
   }
 }
 
