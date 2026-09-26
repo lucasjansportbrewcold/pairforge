@@ -1,0 +1,10 @@
+{
+  "name": "javafo-js",
+  "version": "2.2.0",
+  "description": "JavaScript re-implementation of the JaVaFo pairing engine (FIDE Dutch system, 2017 rules)",
+  "type": "module",
+  "bin": { "javafo": "bin/javafo.js" },
+  "scripts": { "test": "node --test test/" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}

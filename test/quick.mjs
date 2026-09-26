@@ -1,0 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { Tournament } from '../src/tournament.js';
+const t = Tournament.fromText(readFileSync(process.argv[2], 'utf8'));
+const t0 = performance.now();
+const r = t.pair();
+const lines = [String(r.pairs.length + (r.bye ? 1 : 0))];
+for (const [w, b] of r.pairs) lines.push(`${w.id} ${b.id}`);
+if (r.bye) lines.push(`${r.bye.id} 0`);
+console.log(lines.join(' | '));
+console.error('ms', (performance.now() - t0).toFixed(1));

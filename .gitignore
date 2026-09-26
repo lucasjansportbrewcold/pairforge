@@ -1,0 +1,7 @@
+# Original JaVaFo (third-party reference binary, used only for comparison tests)
+javafo.jar
+javafo.bat
+node_modules/
+# generated test data
+test/work/
+*.log
