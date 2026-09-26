@@ -30,5 +30,5 @@ const results = await pool(files, async (f) => {
   return null;
 });
 const bad = results.filter(Boolean);
-for (const x of bad.slice(0, 20)) console.log(x);
+for (const x of bad.slice(0, process.env.ORACLE_ALL ? 100000 : 20)) console.log(x);
 console.log(`oracle: ${files.length} files, ${bad.length} differences`);

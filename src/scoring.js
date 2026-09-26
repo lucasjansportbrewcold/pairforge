@@ -62,45 +62,46 @@ export function explicitScoring(entries) {
   return new ScoringSystem(v);
 }
 
-// Least-squares solution closest to the default values:
-// v = v0 + A+ (p - A v0), restricted to the categories that actually occur.
+// Scoring system inferred from the Points field, the way JaVaFo does it: the
+// players are taken in file order, each one giving an equation (counts of the
+// result categories = Points), solved by Gaussian elimination. The first
+// equation that contradicts the ones before stops the process; the values that
+// are still undetermined keep their defaults.
 function inferValues(rows, points) {
-  const v0 = DEFAULT_VALUES.slice();
-  const used = CODES.map((_, j) => rows.some((r) => r[j] > 0));
-  const cols = used.map((u, j) => (u ? j : -1)).filter((j) => j >= 0);
-  const resid = rows.map((r, i) => points[i] - r.reduce((s, c, j) => s + c * v0[j], 0));
-  if (resid.every((x) => Math.abs(x) < 1e-6)) return v0;
-  const k = cols.length;
-  // Normal equations (A^T A) d = A^T r, solved by Gauss-Jordan with a minimum-norm
-  // treatment of dependent columns (they get a zero correction).
-  const M = Array.from({ length: k }, () => new Array(k + 1).fill(0));
+  const K = CODES.length;
+  const v = DEFAULT_VALUES.slice();
+  const pivots = []; // [column, normalised row, rhs]
   for (let i = 0; i < rows.length; i++) {
-    for (let a = 0; a < k; a++) {
-      const ca = rows[i][cols[a]];
-      if (!ca) continue;
-      for (let b = 0; b < k; b++) M[a][b] += ca * rows[i][cols[b]];
-      M[a][k] += ca * resid[i];
+    const row = rows[i].slice();
+    let rhs = points[i];
+    for (const [c, pr, prhs] of pivots) {
+      const f = row[c];
+      if (!f) continue;
+      for (let j = 0; j < K; j++) row[j] -= f * pr[j];
+      rhs -= f * prhs;
     }
-  }
-  const pivotOf = new Array(k).fill(-1);
-  let r = 0;
-  for (let c = 0; c < k && r < k; c++) {
-    let best = r;
-    for (let i = r + 1; i < k; i++) if (Math.abs(M[i][c]) > Math.abs(M[best][c])) best = i;
-    if (Math.abs(M[best][c]) < 1e-9) continue;
-    [M[r], M[best]] = [M[best], M[r]];
-    const pv = M[r][c];
-    for (let j = c; j <= k; j++) M[r][j] /= pv;
-    for (let i = 0; i < k; i++) {
-      if (i === r || M[i][c] === 0) continue;
-      const f = M[i][c];
-      for (let j = c; j <= k; j++) M[i][j] -= f * M[r][j];
+    let c = -1;
+    for (let j = 0; j < K; j++) if (Math.abs(row[j]) > 1e-9) { c = j; break; }
+    if (c < 0) {
+      if (Math.abs(rhs) > 1e-6) break; // inconsistent: stop here
+      continue;
     }
-    pivotOf[c] = r++;
+    const d = row[c];
+    for (let j = 0; j < K; j++) row[j] /= d;
+    rhs /= d;
+    for (const pv of pivots) {
+      const g = pv[1][c];
+      if (!g) continue;
+      for (let j = 0; j < K; j++) pv[1][j] -= g * row[j];
+      pv[2] -= g * rhs;
+    }
+    pivots.push([c, row, rhs]);
   }
-  const v = v0.slice();
-  for (let c = 0; c < k; c++) {
-    if (pivotOf[c] >= 0) v[cols[c]] = v0[cols[c]] + M[pivotOf[c]][k];
+  const pivotCols = new Set(pivots.map((pv) => pv[0]));
+  for (const [c, row, rhs] of pivots) {
+    let x = rhs;
+    for (let j = 0; j < K; j++) if (j !== c && row[j] && !pivotCols.has(j)) x -= row[j] * v[j];
+    v[c] = x;
   }
   return v.map((x) => Math.round(x * 1e6) / 1e6);
 }
