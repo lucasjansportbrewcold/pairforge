@@ -53,19 +53,44 @@ export class Tournament {
     return set;
   }
 
-  // Initial colour: XXC white1/black1; otherwise, once round 1 has been
-  // played, the colour of the highest ranked player who had a game in round 1;
-  // before that, derived from the tournament name.
+  pnOf(rec) { return this.data.config.rank ? rec.pos : rec.id; }
+
+  // Numbers used by rule E.5 when pairing `round`: consecutive numbers, in
+  // pairing-number order, of the players who are present or have already been
+  // paired in an earlier round (absent players never paired get no number).
+  e5Numbers(round, isPresent) {
+    const paired = (rec) => rec.games.slice(0, round - 1).some((g) => g.opp > 0 || g.code === 'U');
+    const recs = this.data.players.filter((r) => isPresent(r) || paired(r))
+      .sort((a, b) => this.pnOf(a) - this.pnOf(b));
+    return new Map(recs.map((r, k) => [r.id, k + 1]));
+  }
+
+  // Initial colour: XXC white1/black1; otherwise, once round 1 has been played,
+  // the one that rule E.5 must have used there (seen from the first pair of the
+  // top player who had a coloured game); before that, the file/name hash.
   initialWhite(round) {
     const c = this.data.config;
     if (c.white1) return true;
     if (c.black1) return false;
     if (round > 1) {
-      const first = this.data.players
-        .filter((p) => p.games[0] && p.games[0].opp > 0 && 'wb'.includes(p.games[0].color))
-        .map((p) => ({ p, s: this.acceleration(p.id, 1), pn: this.data.config.rank ? p.pos : p.id }))
-        .sort((a, b) => (b.s - a.s) || (a.pn - b.pn))[0];
-      if (first) return first.p.games[0].color === 'w';
+      const recs = this.data.players;
+      const byId = this.data.byId;
+      const inR1 = (r) => r.games[0] && (r.games[0].opp > 0 || r.games[0].code === 'U');
+      const e1 = this.e5Numbers(1, inR1);
+      const g = recs.filter((r) => r.games[0] && r.games[0].opp > 0 && 'wb'.includes(r.games[0].color))
+        .sort((a, b) => this.pnOf(a) - this.pnOf(b))[0];
+      if (g) {
+        const o = byId.get(g.games[0].opp);
+        let hi = g;
+        if (o) {
+          const sg = this.acceleration(g.id, 1), so = this.acceleration(o.id, 1);
+          if (so > sg || (so === sg && this.pnOf(o) < this.pnOf(g))) hi = o;
+        }
+        const hg = hi.games[0];
+        if (hg && 'wb'.includes(hg.color) && e1.has(hi.id)) {
+          return (hg.color === 'w') === (e1.get(hi.id) % 2 === 1);
+        }
+      }
     }
     return initialColourIsWhite(this.data);
   }
@@ -75,10 +100,9 @@ export class Tournament {
   pair(round = this.played + 1, opts = {}) {
     const { players, lastRound } = this.state(round, opts);
     const present = players.filter((p) => p.present);
-    if (round === 1) {
-      // E.5 in the first round: consecutive numbers among the present players
-      present.slice().sort((a, b) => a.pn - b.pn).forEach((p, k) => { p.e5 = k + 1; });
-    }
+    const presentIds = new Set(present.map((p) => p.id));
+    const e5 = this.e5Numbers(round, (r) => presentIds.has(r.id));
+    for (const p of present) p.e5 = e5.get(p.id);
     const res = pairRound(present, {
       lastRound,
       initialWhite: this.initialWhite(round),
