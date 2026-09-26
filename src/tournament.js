@@ -69,11 +69,11 @@ export class Tournament {
   // Initial colour: XXC white1/black1; otherwise, once round 1 has been played,
   // the one that rule E.5 must have used there (seen from the first pair of the
   // top player who had a coloured game); before that, the file/name hash.
-  initialWhite(round) {
+  initialWhite(round, checking = false) {
     const c = this.data.config;
     if (c.white1) return true;
     if (c.black1) return false;
-    if (round > 1) {
+    if (round > 1 || checking) {
       const recs = this.data.players;
       const byId = this.data.byId;
       const inR1 = (r) => r.games[0] && (r.games[0].opp > 0 || r.games[0].code === 'U');
@@ -141,7 +141,7 @@ export class Tournament {
     for (const p of present) p.e5 = e5.get(p.id);
     const res = pairRound(present, {
       lastRound,
-      initialWhite: this.initialWhite(round),
+      initialWhite: this.initialWhite(round, opts.checking),
       forbidden: this.forbiddenPairs(),
       noFastPath: opts.noFastPath || process.env.JAVAFO_NOFAST === "1",
     });
