@@ -62,6 +62,8 @@ export function truncateTrf(text, round, total, pointsOf) {
     if (cur.startsWith('0000') && 'HZF-'.includes(cur[7])) {
       keep += cur;
       p += pts(cur[7], cur[5], false);
+    } else if (cur.trim() === '') {
+      keep += '0000 - - '.padEnd(10); // not paired in that round: absent
     }
     const pstr = p.toFixed(1).padStart(4);
     out.push((line.substring(0, 80) + pstr + line.substring(84, 91) + keep).trimEnd());

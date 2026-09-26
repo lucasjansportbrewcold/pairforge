@@ -43,5 +43,5 @@ function hiGetsWhite(hi, lo, initialWhite) {
     return ph === 'W';
   }
   // E.5 initial colour for an odd pairing number of the higher ranked player
-  return (hi.pn % 2 === 1) === initialWhite;
+  return (hi.e5 % 2 === 1) === initialWhite;
 }

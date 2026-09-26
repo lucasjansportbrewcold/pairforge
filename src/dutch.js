@@ -20,6 +20,7 @@ import { PairingImpossibleError } from './errors.js';
 const CLS_B = 0;     // pair inside the current bracket
 const CLS_NEXT = 1;  // pair of the following bracket (C.7 look-ahead)
 const CLS_REST = 2;  // pair needed only for completion (PPB), or the bye dummy
+const CLS_BYE = 3;   // bye of the following bracket when that one is the last
 
 export function pairKey(a, b) {
   return a < b ? `${a},${b}` : `${b},${a}`;
@@ -102,7 +103,8 @@ class Engine {
         break;
       }
       const lower = [].concat(...groups.slice(g + 1));
-      const res = this.pairBracket(mdps, residents, { mode: 'normal', extra: groups[g + 1] });
+      const res = this.pairBracket(mdps, residents,
+        { mode: 'normal', extra: groups[g + 1], nextIsLast: g + 1 === groups.length - 1 });
       if (this.completable(res.floaters, lower)) {
         pairs.push(...res.pairs);
         mdps = res.floaters;
@@ -215,6 +217,12 @@ class Engine {
       }
     }
     const pairs = fixed.concat(remPairs);
+    if (this.opts.trace) {
+      for (const [i, j] of pairs) {
+        this.opts.trace.set(this.ps[i].id, { bsn: B.indexOf(i) + 1, size: B.length, mdp: isMdp.has(i) });
+        this.opts.trace.set(this.ps[j].id, { bsn: B.indexOf(j) + 1, size: B.length, mdp: isMdp.has(j) });
+      }
+    }
     const inPair = new Set();
     for (const [i, j] of pairs) { inPair.add(i); inPair.add(j); }
     return { pairs, floaters: B.filter((i) => !inPair.has(i)) };
@@ -241,7 +249,9 @@ class BracketModel {
     this.nb = B.length;
     const total = verts.length;
     this.total = total;
-    this.dummy = cfg.mode !== 'normal' && total % 2 === 1 ? total : -1;
+    // bye dummy: completion of the round (PPB / last bracket), or the bye of the
+    // following bracket when it is the last one (C.7 respects C.2 there)
+    this.dummy = (cfg.mode !== 'normal' || cfg.nextIsLast) && total % 2 === 1 ? total : -1;
     this.nv = total + (this.dummy >= 0 ? 1 : 0);
     this.maxPairs = BigInt(Math.floor(this.nv / 2));
 
@@ -262,7 +272,9 @@ class BracketModel {
     }
     if (this.dummy >= 0) {
       for (let a = 0; a < total; a++) {
-        if (ps[verts[a]].canGetBye) { eu.push(a); ev.push(this.dummy); ecls.push(CLS_REST); }
+        if (ps[verts[a]].canGetBye) {
+          eu.push(a); ev.push(this.dummy); ecls.push(cfg.mode === 'normal' ? CLS_BYE : CLS_REST);
+        }
       }
     }
     this.eu = eu;
@@ -292,6 +304,10 @@ class BracketModel {
     levels.push(this.lexLevel((v) => df(v), (a, b) => [sd(a, b)]));  // C.6
 
     if (cfg.mode === 'normal' && total > nb) {                      // C.7
+      if (cfg.nextIsLast) {
+        // the following bracket is the last one: its pairing must be complete
+        levels.push(ecls.map((c) => (c === CLS_B || c === CLS_NEXT ? 2n : c === CLS_BYE ? 1n : 0n)));
+      }
       levels.push(ecls.map((c) => (c === CLS_NEXT ? 1n : 0n)));
       const sN = this.score(nb);
       const dfN = (v) => this.score(v) - (sN - SCALE);

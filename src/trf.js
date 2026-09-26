@@ -49,6 +49,7 @@ export class TrfData {
     this.forbidden = [];      // arrays of ids (XXP)
     this.absent = new Set();  // ids (XXZ)
     this.scoring = [];        // [code, value] pairs in order (XXS)
+    this.lastName = null;     // tournament name of the last 012 record
   }
 }
 
@@ -124,6 +125,7 @@ export function parseTrf(text) {
       continue;
     }
     if (!data.headers.has(code)) data.headers.set(code, rest);
+    if (code === '012') data.lastName = rest;
     switch (code) {
       case 'XXR': {
         const n = parseInt(rest.trim(), 10);
@@ -171,15 +173,15 @@ export function parseTrf(text) {
   return data;
 }
 
-// Number of rounds for which pairings exist in the file: the last round in which
-// some player has an opponent or a pairing-allocated bye.
+// Number of rounds already played: the number of round columns in the file,
+// unless the last column only holds absences (then it is the round to pair).
 export function pairedRounds(data) {
   let n = 0;
-  for (const p of data.players) {
-    for (let i = p.games.length - 1; i >= n; i--) {
-      const g = p.games[i];
-      if (g.opp > 0 || g.code === 'U' || (g.opp === 0 && g.code === '+')) { n = i + 1; break; }
-    }
-  }
-  return n;
+  for (const p of data.players) n = Math.max(n, p.games.length);
+  if (n === 0) return 0;
+  const paired = data.players.some((p) => {
+    const g = p.games[n - 1];
+    return g && (g.opp > 0 || g.code === 'U');
+  });
+  return paired ? n : n - 1;
 }

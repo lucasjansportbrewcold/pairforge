@@ -42,8 +42,9 @@ for (const f of files) {
     rounds++;
     let exp = expected, g = got;
     if (r === 1 && ignoreColour1) {
-      const norm = (x) => x.map((s) => s.split('-').map(Number).sort((a, b) => a - b).join('-')).sort();
-      exp = norm(expected); g = norm(got);
+      // the RTG draws its own initial colour: accept a complete colour flip
+      const flip = (x) => x.map((s) => { const [a, b] = s.split('-'); return b === '0' ? s : `${b}-${a}`; }).sort();
+      if (flip(got).join(' ') === expected.join(' ')) g = expected;
     }
     if (exp.join(' ') !== g.join(' ')) {
       bad++;

@@ -14,6 +14,7 @@ export class Player {
     this.id = rec.id;
     this.pos = rec.pos;
     this.pn = pn;            // pairing number used for ranking (A.2.b)
+    this.e5 = pn;            // pairing number used by rule E.5
     this.score = 0;          // pairing score in units (includes acceleration)
     this.realScore = 0;      // points scored in the previous rounds (units)
     this.colors = '';        // colours of the played games, e.g. "WBW"

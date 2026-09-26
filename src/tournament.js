@@ -50,10 +50,20 @@ export class Tournament {
     return set;
   }
 
-  initialWhite() {
+  // Initial colour: XXC white1/black1; otherwise, once round 1 has been
+  // played, the colour of the highest ranked player who had a game in round 1;
+  // before that, derived from the tournament name.
+  initialWhite(round) {
     const c = this.data.config;
     if (c.white1) return true;
     if (c.black1) return false;
+    if (round > 1) {
+      const first = this.data.players
+        .filter((p) => p.games[0] && p.games[0].opp > 0 && 'wb'.includes(p.games[0].color))
+        .map((p) => ({ p, s: this.acceleration(p.id, 1), pn: this.data.config.rank ? p.pos : p.id }))
+        .sort((a, b) => (b.s - a.s) || (a.pn - b.pn))[0];
+      if (first) return first.p.games[0].color === 'w';
+    }
     return initialColourIsWhite(this.data);
   }
 
@@ -62,10 +72,15 @@ export class Tournament {
   pair(round = this.played + 1, opts = {}) {
     const { players, lastRound } = this.state(round, opts);
     const present = players.filter((p) => p.present);
+    if (round === 1) {
+      // E.5 in the first round: consecutive numbers among the present players
+      present.slice().sort((a, b) => a.pn - b.pn).forEach((p, k) => { p.e5 = k + 1; });
+    }
     const res = pairRound(present, {
       lastRound,
-      initialWhite: this.initialWhite(),
+      initialWhite: this.initialWhite(round),
       forbidden: this.forbiddenPairs(),
+      trace: opts.trace,
     });
     const pairs = sortBoards(res.pairs);
     return { round, pairs, bye: res.bye, players, lastRound };
