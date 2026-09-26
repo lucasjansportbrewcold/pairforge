@@ -107,7 +107,7 @@ export class Tournament {
       lastRound,
       initialWhite: this.initialWhite(round),
       forbidden: this.forbiddenPairs(),
-      trace: opts.trace,
+      noFastPath: opts.noFastPath || process.env.JAVAFO_NOFAST === "1",
     });
     const pairs = sortBoards(res.pairs);
     return { round, pairs, bye: res.bye, players, lastRound };

@@ -156,10 +156,125 @@ class Engine {
     return info;
   }
 
+  // Fast path. Walks the candidates in the order of sections B/D (no exchange)
+  // and accepts the first one that reaches, criterion by criterion, the best
+  // value any candidate could have: such a candidate is optimal and generated
+  // first, i.e. exactly the one the full model would choose. Gives up (null)
+  // as soon as that cannot be decided cheaply.
+  perfectCandidate(mdps, residents, cfg) {
+    if (cfg.mode === 'ppb' || residents.length === 0) return null;
+    const ps = this.ps;
+    const s0 = ps[residents[0]].score;
+    for (const i of residents) if (ps[i].score !== s0) return null; // collapsed bracket
+    const md = mdps.slice().sort((a, b) => a - b);
+    const res = residents.slice().sort((a, b) => a - b);
+    if (md.length > res.length) return null;
+    const last = this.opts.lastRound;
+    const clean = (i, j) => {
+      if (!this.ok(i, j)) return false;
+      const c = this.colorInfo(i, j);
+      return c.c10 === 0 && c.c11 === 0 && (!last || (c.c8 === 0 && c.c9 === 0));
+    };
+    let budget = 2000 + 20 * (md.length + res.length);
+    const used = new Uint8Array(this.n);
+    const pairs = [];
+
+    const leaf = (floaters) => {
+      for (const f of floaters) {
+        const p = ps[f];
+        if (p.float1 === 'D' || p.float2 === 'D') return false;
+      }
+      if (cfg.mode === 'last') return floaters.length === 0 || (floaters.length === 1 && ps[floaters[0]].canGetBye);
+      if (floaters.length === 0) return true;
+      return this.idealNext(floaters, cfg.extra, cfg.nextIsLast);
+    };
+
+    // remainder (homogeneous): S1R = first P, transpositions of S2R in order
+    const remainder = () => {
+      const rem = res.filter((i) => !used[i]);
+      const P = Math.floor(rem.length / 2);
+      const S1 = rem.slice(0, P);
+      const S2 = rem.slice(P);
+      const dfs = (k) => {
+        if (--budget < 0) return null;
+        if (k === P) {
+          const fl = S2.filter((i) => !used[i]);
+          return leaf(fl) ? fl : undefined;
+        }
+        const x = S1[k];
+        for (const y of S2) {
+          if (used[y] || !clean(x, y)) continue;
+          used[y] = 1;
+          pairs.push([x, y]);
+          const r = dfs(k + 1);
+          if (r !== undefined) return r;
+          pairs.pop();
+          used[y] = 0;
+        }
+        return undefined;
+      };
+      return dfs(0);
+    };
+
+    // MDP-pairing: every MDP paired, opponents taken in S2 (residents) order.
+    // Only the first complete MDP-pairing is tried: a later one comes after all
+    // the resident-exchanges of this one in the generation order.
+    let attempted = false;
+    const dfsM = (k) => {
+      if (--budget < 0) return null;
+      if (k === md.length) {
+        attempted = true;
+        const r = remainder();
+        return r === undefined ? null : r;
+      }
+      const m = md[k];
+      for (const r of res) {
+        if (used[r] || !clean(m, r)) continue;
+        if (ps[r].float1 === 'U' || ps[r].float2 === 'U') continue;
+        used[r] = 1;
+        pairs.push([m, r]);
+        const out = dfsM(k + 1);
+        if (out !== undefined || attempted) return out;
+        pairs.pop();
+        used[r] = 0;
+      }
+      return undefined;
+    };
+    const floaters = dfsM(0);
+    if (!floaters) return null;
+    return { pairs, floaters };
+  }
+
+  // Does the following bracket (floaters moved down + next scoregroup) admit the
+  // best conceivable pairing: every floater paired, as many pairs as possible,
+  // an eligible resident left for the bye when it is the last bracket?
+  idealNext(floaters, next, nextIsLast) {
+    const list = floaters.concat(next);
+    const m = list.length;
+    const nf = floaters.length;
+    if (nf > next.length) return false;
+    const odd = m % 2 === 1;
+    const size = odd ? m + 1 : m;
+    const adj = Array.from({ length: size }, () => []);
+    for (let a = 0; a < m; a++) {
+      for (let b = Math.max(a + 1, nf); b < m; b++) {
+        if (this.ok(list[a], list[b])) { adj[a].push(b); adj[b].push(a); }
+      }
+      if (odd && a >= nf && (!nextIsLast || this.ps[list[a]].canGetBye)) { adj[a].push(m); adj[m].push(a); }
+    }
+    const mate = maxCardinalityMatching(size, adj);
+    for (let v = 0; v < size; v++) if (mate[v] === -1) return false;
+    return true;
+  }
+
   // Pairs one bracket. cfg.mode: 'normal' (look-ahead on cfg.extra = next
   // scoregroup), 'ppb' (completion together with cfg.extra = all lower players)
   // or 'last' (last bracket: completion including the bye).
   pairBracket(mdps, residents, cfg) {
+    if (!this.opts.noFastPath) {
+      const fast = this.perfectCandidate(mdps, residents, cfg);
+      if (fast) return fast;
+    }
     const B = mdps.concat(residents).sort((a, b) => a - b);
     const isMdp = new Set(mdps);
     const ctx = new BracketModel(this, B, isMdp, cfg);
@@ -217,12 +332,6 @@ class Engine {
       }
     }
     const pairs = fixed.concat(remPairs);
-    if (this.opts.trace) {
-      for (const [i, j] of pairs) {
-        this.opts.trace.set(this.ps[i].id, { bsn: B.indexOf(i) + 1, size: B.length, mdp: isMdp.has(i) });
-        this.opts.trace.set(this.ps[j].id, { bsn: B.indexOf(j) + 1, size: B.length, mdp: isMdp.has(j) });
-      }
-    }
     const inPair = new Set();
     for (const [i, j] of pairs) { inPair.add(i); inPair.add(j); }
     return { pairs, floaters: B.filter((i) => !inPair.has(i)) };
@@ -242,7 +351,20 @@ class BracketModel {
     this.cfg = cfg;
     this.bsn = new Map(B.map((i, k) => [i, k + 1]));
     const ps = engine.ps;
-    const extra = cfg.extra || [];
+    let extra = cfg.extra || [];
+    this.floaterRank = null;
+    // C.7 only depends on who floats. When the bracket can be paired completely
+    // nobody does; when exactly one player must float, the value of the
+    // following bracket is computed per possible floater. Only otherwise the
+    // following bracket becomes part of the model.
+    if (cfg.mode === 'normal' && extra.length && !process.env.JVF_FULLC7) {
+      const floating = B.length - 2 * this.pairsInside(B, isMdp);
+      if (floating === 0) extra = [];
+      else if (floating === 1) {
+        this.floaterRank = this.nextBracketRanks(B, extra, cfg.nextIsLast);
+        extra = [];
+      }
+    }
     const verts = B.concat(cfg.mode === 'last' ? [] : extra);
     this.verts = verts;
     this.pos = new Map(verts.map((i, k) => [i, k]));
@@ -251,7 +373,7 @@ class BracketModel {
     this.total = total;
     // bye dummy: completion of the round (PPB / last bracket), or the bye of the
     // following bracket when it is the last one (C.7 respects C.2 there)
-    this.dummy = (cfg.mode !== 'normal' || cfg.nextIsLast) && total % 2 === 1 ? total : -1;
+    this.dummy = (cfg.mode !== 'normal' || (cfg.nextIsLast && extra.length)) && total % 2 === 1 ? total : -1;
     this.nv = total + (this.dummy >= 0 ? 1 : 0);
     this.maxPairs = BigInt(Math.floor(this.nv / 2));
 
@@ -283,6 +405,77 @@ class BracketModel {
     this.qw = this.qualityWeights();
   }
 
+  // Maximum number of pairs inside the bracket (MDPs never meet each other).
+  pairsInside(B, isMdp) {
+    const n = B.length;
+    const adj = Array.from({ length: n }, () => []);
+    for (let a = 0; a < n; a++) {
+      for (let b = a + 1; b < n; b++) {
+        if (isMdp.has(B[a]) && isMdp.has(B[b])) continue;
+        if (this.e.ok(B[a], B[b])) { adj[a].push(b); adj[b].push(a); }
+      }
+    }
+    return matchingSize(n, adj);
+  }
+
+  // C.7 with a single floater f: rank (0 = best) of the following bracket
+  // {f} + N for every possible f, ordered like the full model does: complete
+  // pairing of a last bracket (bye to an eligible player), number of pairs,
+  // then PSD. With N a single scoregroup, the PSD only depends on whether f
+  // can be paired: the other elements are all 1 point (unpaired) or 0.
+  nextBracketRanks(B, N, nextIsLast) {
+    const e = this.e;
+    const ps = e.ps;
+    const nN = N.length;
+    const sN = ps[N[0]].score;
+    const base = Array.from({ length: nN }, () => []);
+    for (let a = 0; a < nN; a++) {
+      for (let b = a + 1; b < nN; b++) if (e.ok(N[a], N[b])) { base[a].push(b); base[b].push(a); }
+    }
+    const g = nN + 1;
+    const withBye = nextIsLast && g % 2 === 1;
+    const keys = B.map((f) => {
+      const adj = base.map((l) => l.slice());
+      adj.push([]);
+      for (let a = 0; a < nN; a++) if (e.ok(f, N[a])) { adj[a].push(nN); adj[nN].push(a); }
+      const hasNb = adj[nN].length > 0;
+      const nu = matchingSize(g, adj);
+      let covered = 2 * nu;
+      let fp = hasNb;
+      if (withBye) {
+        const eligible = (v) => (v === nN ? ps[f].canGetBye : ps[N[v]].canGetBye);
+        const bye = (skipF) => {
+          const h = adj.map((l) => l.slice());
+          h.push([]);
+          for (let v = 0; v < g; v++) {
+            if (eligible(v) && !(skipF && v === nN)) { h[v].push(g); h[g].push(v); }
+          }
+          return matchingSize(g + 1, h);
+        };
+        if (bye(false) === nu + 1) {
+          covered += 1;
+          fp = hasNb && bye(true) === nu + 1;
+        }
+      }
+      const unpaired = g - 2 * nu;
+      const els = fp
+        ? [ps[f].score - sN].concat(new Array(unpaired).fill(SCALE))
+        : [ps[f].score - sN + SCALE].concat(new Array(unpaired - 1).fill(SCALE));
+      els.sort((x, y) => y - x);
+      return [nextIsLast ? -covered : 0, -nu, ...els];
+    });
+    const cmp = (x, y) => {
+      for (let i = 0; i < Math.max(x.length, y.length); i++) {
+        const d = (x[i] ?? 0) - (y[i] ?? 0);
+        if (d) return d;
+      }
+      return 0;
+    };
+    const uniq = [];
+    for (const k of keys.slice().sort(cmp)) if (!uniq.length || cmp(uniq[uniq.length - 1], k) !== 0) uniq.push(k);
+    return keys.map((k) => uniq.findIndex((u) => cmp(u, k) === 0));
+  }
+
   score(v) { return this.e.ps[this.verts[v]].score; }
 
   // Quality criteria (completion, C.5 - C.19) as BigInt weights of every edge.
@@ -303,6 +496,10 @@ class BracketModel {
     const sd = (a, b) => Math.abs(this.score(a) - this.score(b));
     levels.push(this.lexLevel((v) => df(v), (a, b) => [sd(a, b)]));  // C.6
 
+    if (this.floaterRank) {                                         // C.7 (one floater)
+      const r = this.floaterRank;
+      levels.push(this.lexLevel((v) => r[v], () => []));
+    }
     if (cfg.mode === 'normal' && total > nb) {                      // C.7
       if (cfg.nextIsLast) {
         // the following bracket is the last one: its pairing must be complete
@@ -507,6 +704,13 @@ class BracketModel {
     }
     return this.qw[this.edgeIndex.get(a * this.nv + b)];
   }
+}
+
+function matchingSize(n, adj) {
+  const mate = maxCardinalityMatching(n, adj);
+  let c = 0;
+  for (let v = 0; v < n; v++) if (mate[v] > v) c++;
+  return c;
 }
 
 function rankPow(values, base) {
