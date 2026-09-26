@@ -32,17 +32,23 @@ export function checkRound(t, round, name) {
   const res = t.pair(round, { checking: true, total: t.data.totalRounds || t.played });
   const act = actualPairs(t, round, res.players);
   const key = ([w, b]) => `${w.id}-${b.id}`;
+  const rkey = ([w, b]) => `${b.id}-${w.id}`;
   const mine = new Set(res.pairs.map(key));
   const theirs = new Set(act.pairs.map(key));
-  const left = res.pairs.filter((pr) => !theirs.has(key(pr))).map(([w, b]) => `${pad(w.id, 7)} - ${pad(b.id, 3)}`);
-  const right = act.pairs.filter((pr) => !mine.has(key(pr))).map(([w, b]) => `${pad(w.id, 19)} - ${pad(b.id, 3)}`);
+  // same pair with the colours the other way round: reported apart
+  const inverted = res.pairs.filter((pr) => theirs.has(rkey(pr)));
+  const left = res.pairs.filter((pr) => !theirs.has(key(pr)) && !theirs.has(rkey(pr)))
+    .map(([w, b]) => `${pad(w.id, 7)} - ${pad(b.id, 3)}`);
+  const right = act.pairs.filter((pr) => !mine.has(key(pr)) && !mine.has(rkey(pr)))
+    .map(([w, b]) => `${pad(w.id, 19)} - ${pad(b.id, 3)}`);
   const byeL = res.bye ? res.bye.id : 0;
   const byeR = act.bye ? act.bye.id : 0;
   if (byeL !== byeR) {
     if (byeL) left.push(`    PAB:${pad(byeL, 5)}`);
     if (byeR) right.push(`                PAB:${pad(byeR, 5)}`);
   }
-  if (left.length || right.length) {
+  if (left.length || right.length || inverted.length) {
+    for (const [w, b] of inverted) lines.push(`${w.id} and ${b.id} had inverted colors`);
     lines.push('  Checker pairings        Tournament pairings ');
     const n = Math.max(left.length, right.length);
     for (let i = 0; i < n; i++) lines.push((left[i] ?? ' '.repeat(13)) + (right[i] ?? ''));

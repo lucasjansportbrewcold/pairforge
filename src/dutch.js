@@ -147,8 +147,9 @@ class Engine {
       for (const [p, c] of [[a, ca], [b, cb]]) {
         const cd = p.cd + (c === 'W' ? 1 : -1);
         if (cd > 2 || cd < -2) c8++;
-        const h = p.colors;
-        if (h.length >= 2 && h[h.length - 1] === c && h[h.length - 2] === c) c9++;
+        // same colour three times: counted, like JaVaFo, as a player with the
+        // same colour in the last two games who does not get his preference
+        if (p.twice && p.pref !== c) c9++;
       }
     }
     info = { c8, c9, c10, c11 };

@@ -42,9 +42,10 @@ function preferenceOf(p) {
   const last = c[n - 1];
   p.twice = n >= 2 && c[n - 2] === last;
   if (p.cd < -1 || p.cd > 1 || p.twice) {
+    // the colour difference decides; only when it is zero the last games do
+    // (as JaVaFo, also when both conditions point to different colours)
     p.strength = ABS;
-    if (p.cd < -1) p.pref = 'W';
-    else if (p.cd > 1) p.pref = 'B';
+    if (p.cd !== 0) p.pref = p.cd < 0 ? 'W' : 'B';
     else p.pref = last === 'W' ? 'B' : 'W';
   } else if (p.cd !== 0) {
     p.strength = STRONG;

@@ -1,7 +1,8 @@
 // Compares the pairings checker (-c) of javafo.jar and the JS CLI on complete
-// tournaments; with --mutate, some pairs of a random round are swapped first
-// (same results, so the Points stay consistent).
-// usage: node test/tools/checkoracle.mjs <dir> [--mutate] [maxFiles]
+// tournaments. Mutations (results stay consistent with the Points field):
+//   --mutate  swaps the opponents of two games with the same result and colours
+//   --flip    swaps the colours of one game
+// usage: node test/tools/checkoracle.mjs <dir> [--mutate] [--flip] [maxFiles]
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { runJava, pool, roundsIn } from './common.mjs';
@@ -10,11 +11,31 @@ import { main } from '../../src/cli.js';
 const args = process.argv.slice(2);
 const dir = args[0];
 const mutate = args.includes('--mutate');
+const flip = args.includes('--flip');
 const max = parseInt(args.find((a) => /^\d+$/.test(a)) || '100000', 10);
 const work = path.join(dir, '_chk');
 mkdirSync(work, { recursive: true });
 let seed = 12345;
 const rnd = () => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed / 4294967296; };
+
+function flipColours(text) {
+  const lines = text.split(/\r?\n/);
+  const R = roundsIn(text);
+  const r = 1 + Math.floor(rnd() * R);
+  const at = 91 + 10 * (r - 1);
+  const cand = lines.map((l, i) => [l, i]).filter(([l]) => l.startsWith('001') &&
+    /^\s*\d+ [wb] [10=]/.test(l.padEnd(at + 10).substring(at, at + 10)) && parseInt(l.substring(at, at + 4), 10) > 0);
+  if (!cand.length) return null;
+  const [l, i] = cand[Math.floor(rnd() * cand.length)];
+  const opp = parseInt(l.substring(at, at + 4), 10);
+  const j = lines.findIndex((x) => x.startsWith('001') && parseInt(x.substring(4, 8), 10) === opp);
+  for (const k of [i, j]) {
+    const x = lines[k].padEnd(at + 10);
+    const c = x[at + 5] === 'w' ? 'b' : 'w';
+    lines[k] = (x.substring(0, at + 5) + c + x.substring(at + 6)).trimEnd();
+  }
+  return lines.join('\n');
+}
 
 function swapPairs(text) {
   const lines = text.split(/\r?\n/);
@@ -47,6 +68,11 @@ function swapPairs(text) {
 const files = readdirSync(dir).filter((f) => f.endsWith('.trf')).sort().slice(0, max);
 const res = await pool(files, async (f) => {
   let text = readFileSync(path.join(dir, f), 'utf8');
+  if (flip) {
+    const m = flipColours(text);
+    if (!m) return null;
+    text = m;
+  }
   if (mutate) {
     let m = null;
     for (let k = 0; k < 20 && !m; k++) m = swapPairs(text);
