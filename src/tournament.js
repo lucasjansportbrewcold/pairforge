@@ -120,11 +120,12 @@ export class Tournament {
       const inRound1 = round === 1
         ? (r) => this.isPresent(r, 1, opts.checking)
         : (r) => this.isPresent(r, 1, true);
-      const first = this.data.players.filter(inRound1).map((r) => this.pnOf(r)).sort((a, b) => a - b);
+      // by pairing-id, also with XXC rank
+      const first = this.data.players.filter(inRound1).map((r) => r.id).sort((a, b) => a - b);
       let ga = Math.ceil(first.length / 2);
       if (ga % 2 === 1) ga++;
       const limit = first.length ? first[Math.min(ga, first.length) - 1] : 0;
-      for (const r of this.data.players) if (this.pnOf(r) <= limit) points.set(r.id, value);
+      for (const r of this.data.players) if (r.id <= limit) points.set(r.id, value);
     }
     return { round, points };
   }
