@@ -50,6 +50,7 @@ export class TrfData {
     this.absent = new Set();  // ids (XXZ)
     this.scoring = [];        // [code, value] pairs in order (XXS)
     this.lastName = null;     // tournament name of the last 012 record
+    this.fileBase = '';       // base name of the TRF file (initial colour)
   }
 }
 

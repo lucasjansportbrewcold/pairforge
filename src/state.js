@@ -57,7 +57,9 @@ function preferenceOf(p) {
 
 // Builds the state of every player for pairing round `round` (1-based).
 // `acc(id, round)` returns the fictitious points (in units) for that round.
-export function buildState(data, scoring, round, acc) {
+// checking = true: `round` has been played already (pairings checker); the
+// players paired in that round (game or pairing-allocated bye) are present.
+export function buildState(data, scoring, round, acc, checking = false) {
   const recs = data.players;
   const players = recs.map((r) => new Player(r, data.config.rank ? r.pos : r.id));
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -111,7 +113,8 @@ export function buildState(data, scoring, round, acc) {
     p.float1 = floatOf(round - 2);
     p.float2 = floatOf(round - 3);
     const g = rec.games[round - 1];
-    if (data.absent.has(p.id) || (g && g.opp === 0 && !g.isBlank)) p.present = false;
+    if (checking) p.present = !!g && (g.opp > 0 || g.code === 'U');
+    else if (data.absent.has(p.id) || (g && g.opp === 0 && !g.isBlank)) p.present = false;
   }
   return players;
 }

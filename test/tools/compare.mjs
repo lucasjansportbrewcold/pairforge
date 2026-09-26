@@ -10,10 +10,15 @@ const args = process.argv.slice(2);
 const verbose = args.includes('--verbose');
 const ignoreColour1 = !args.includes('--colour1');
 const files = [];
+const shardArg = args.find((a) => a.startsWith('--shard='));
+const [shard, shards] = shardArg ? shardArg.slice(8).split('/').map(Number) : [0, 1];
 for (const a of args.filter((x) => !x.startsWith('--') && !/^\d+$/.test(x))) {
   if (statSync(a).isDirectory()) for (const f of readdirSync(a).sort()) { if (f.endsWith('.trf')) files.push(path.join(a, f)); }
   else files.push(a);
 }
+const mine = files.filter((_, i) => i % shards === shard);
+files.length = 0;
+files.push(...mine);
 const failDir = path.join(ROOT, 'test', 'work', 'fail');
 mkdirSync(failDir, { recursive: true });
 let rounds = 0, bad = 0, errors = 0, ms = 0, maxMs = 0;
@@ -60,3 +65,4 @@ for (const f of files) {
   }
 }
 console.log(`files ${files.length}, rounds ${rounds}, mismatches ${bad}, errors ${errors}, avg ${(ms / Math.max(1, rounds)).toFixed(1)} ms, max ${maxMs.toFixed(0)} ms`);
+console.log(`#STAT ${JSON.stringify({ files: files.length, rounds, bad, errors, ms, maxMs })}`);

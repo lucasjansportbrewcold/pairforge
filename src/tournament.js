@@ -4,7 +4,7 @@ import { parseTrf, pairedRounds } from './trf.js';
 import { buildScoring } from './scoring.js';
 import { buildState, toUnits, SCALE } from './state.js';
 import { pairRound, pairKey } from './dutch.js';
-import { initialColourIsWhite } from './initialColour.js';
+import { initialColourIsWhite, fileBase } from './initialColour.js';
 
 export class Tournament {
   constructor(data) {
@@ -13,8 +13,11 @@ export class Tournament {
     this.played = pairedRounds(data);
   }
 
-  static fromText(text) {
-    return new Tournament(parseTrf(text));
+  // fileName (optional): the TRF file name, used for the initial colour choice
+  static fromText(text, fileName) {
+    const data = parseTrf(text);
+    data.fileBase = fileBase(fileName);
+    return new Tournament(data);
   }
 
   get name() { return (this.data.headers.get('012') || '').trim(); }
@@ -30,8 +33,8 @@ export class Tournament {
   }
 
   // Player states for pairing `round` (1-based).
-  state(round, { total } = {}) {
-    const players = buildState(this.data, this.scoring, round, (id, r) => this.acceleration(id, r));
+  state(round, { total, checking } = {}) {
+    const players = buildState(this.data, this.scoring, round, (id, r) => this.acceleration(id, r), checking);
     const last = round === (total ?? this.totalRounds(round));
     if (last) {
       const limit = (round - 1) * toUnits(this.scoring.maxPerRound);
