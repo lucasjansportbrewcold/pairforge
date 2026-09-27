@@ -102,16 +102,21 @@ en een Java-runtime nodig):
 | `checkoracle.mjs` | vergelijkt de checker-uitvoer, ook na gerichte verstoringen (geruilde paren, gewisselde kleuren) |
 | `rtgcheck.mjs` | laat de originele checker toernooien uit onze generator controleren |
 
-Resultaat bij de laatste run: 0 verschillen op o.a. 4376 + 1673 rondes uit gegenereerde
-toernooien, ruim 1500 varianten (inclusief Baku) en de checker op ruim 1000 (verstoorde)
-toernooien; de originele checker keurde alle ~2800 rondes uit onze generator goed.
+Resultaat bij de laatste run: 0 verschillen op 6828 rondes uit door JaVaFo gegenereerde
+toernooien (waarvan 1673 met extreem veel forfaits en afwezigen), 1683 varianten met indeling én
+check-list byte voor byte (inclusief Baku, rank, late instromers en 3-1-0 zonder XXS), de checker op
+ruim 1000 (verstoorde) toernooien en een toernooi van 1000 spelers; de originele checker keurde alle
+~2800 rondes uit onze generator goed. `fastslow.mjs` controleert bovendien de snelle route tegen de
+exacte matching (0 verschillen op 1314 rondes).
 
 `npm test` draait de eigen tests (de matching-algoritmen en vaste referentie-uitvoer van JaVaFo).
 
 ## Snelheid
 
-Gemiddeld ~15 ms per ronde over toernooien van 15–415 spelers; de zwaarste rondes (±380 spelers,
-ronde 2–3) nemen ~0,5 s, sneller dan `javafo.jar` op dezelfde invoer.
+Gemiddeld 2–3 ms per ronde over toernooien van 15–415 spelers (de zwaarste van 4376 rondes: 75 ms);
+een toernooi van 1000 spelers en 9 rondes wordt in totaal in ~1 s ingedeeld, waar `javafo.jar` er
+~5 s over doet. Het meeste werk doet de snelle route; de exacte matching is alleen nodig in groepen
+waar de onvermijdelijke kleurconflicten of floats de ondergrens niet halen.
 
 ## Bekende verschillen
 
@@ -123,4 +128,9 @@ ronde 2–3) nemen ~0,5 s, sneller dan `javafo.jar` op dezelfde invoer.
   de afgeleide waarde verschillen.
 * De verborgen XML-uitvoer van JaVaFo (`-x`, die met moderne Java niet meer werkt) is niet
   nagebouwd. Waar JaVaFo crasht (bijv. niet-doorlopende spelernummers) geeft deze versie gewoon een
-  indeling.
+  indeling; waar JaVaFo met een NullPointerException stopt omdat alle rondes al gespeeld zijn,
+  geeft deze versie een leesbare foutmelding. In beide gevallen: exitcode 1 en geen uitvoerbestand.
+* Foutmeldingen volgen die van JaVaFo (`Error in processing (...)`), maar Java-specifieke teksten
+  zoals stack traces en gelokaliseerde systeemmeldingen worden niet nagebootst.
+
+Net als JaVaFo vereist indelen (`-p`, `-l`) een `XXR`-regel; de checker (`-c`) niet.
