@@ -8,7 +8,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { EOL } from 'node:os';
 import { Tournament } from './tournament.js';
 import { parseTrf, pairedRounds } from './trf.js';
-import { buildScoring, CODES, DEFAULT_VALUES, IDX } from './scoring.js';
+import { buildScoring, category, CODES, DEFAULT_VALUES } from './scoring.js';
 import { decimalSeparator } from './format.js';
 import { JaVaFoError } from './errors.js';
 
@@ -199,18 +199,7 @@ export function generate({ model = null, config = null, configText = null, seed:
   const xxs = CODES.map((c, i) => `${c}=${values[i]}`).join(' ');
   const results = Array.from({ length: n }, () => []); // slot strings per round
   const accel = Array.from({ length: n }, () => []);
-  const pts = (code, colour, opp) => {
-    const g = { code, color: colour, opp };
-    // category() semantics without importing Game
-    if (opp > 0) {
-      if ('1W'.includes(code)) return values[colour === 'b' ? IDX.BW : IDX.WW];
-      if ('=D'.includes(code)) return values[colour === 'b' ? IDX.BD : IDX.WD];
-      if ('0L'.includes(code)) return values[colour === 'b' ? IDX.BL : IDX.WL];
-      return code === '+' ? values[IDX.FW] : values[IDX.FL];
-    }
-    void g;
-    return { U: values[IDX.PAB], F: values[IDX.FPB], H: values[IDX.HPB] }[code] ?? values[IDX.ZPB];
-  };
+  const pts = (code, colour, opp) => values[category({ code, color: colour, opp })];
   const playerLine = (i, round, points) => {
     const id = i + 1;
     let s = `001 ${String(id).padStart(4)}`.padEnd(14) + `Test${String(id).padStart(4, '0')} Player${String(id).padStart(4, '0')}`;

@@ -63,10 +63,9 @@ export function checklist(result, eol = '\r\n') {
     cols.forEach((c, i) => { s += `${lpad(c, gW(hist - i))}\t`; });
     return s;
   };
-  let out = '﻿' + head + eol + eol;
+  let out = '\ufeff' + head + eol + eol;
   out += groups.map((g) => g.map((p) => row(p) + eol).join('')).join(eol);
   out += eol + eol + VERSION;
   return out;
 }
 
-export { SCALE };

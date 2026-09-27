@@ -2,7 +2,7 @@
 
 import { parseTrf, pairedRounds } from './trf.js';
 import { buildScoring } from './scoring.js';
-import { buildState, toUnits, SCALE } from './state.js';
+import { buildState, toUnits } from './state.js';
 import { pairRound, pairKey } from './dutch.js';
 import { initialColourIsWhite, fileBase } from './initialColour.js';
 
@@ -20,7 +20,6 @@ export class Tournament {
     return new Tournament(data);
   }
 
-  get name() { return (this.data.headers.get('012') || '').trim(); }
 
   acceleration(id, round) {
     if (this.override && this.override.round === round) return this.override.points.get(id) || 0;
@@ -164,4 +163,3 @@ export function sortBoards(pairs) {
     .map((x) => x.pr);
 }
 
-export { SCALE };
