@@ -10,7 +10,7 @@ import { Tournament } from './tournament.js';
 import { parseTrf, pairedRounds } from './trf.js';
 import { buildScoring, category, CODES, DEFAULT_VALUES } from './scoring.js';
 import { decimalSeparator } from './format.js';
-import { JaVaFoError } from './errors.js';
+import { PairingError } from './errors.js';
 
 // Deterministic generator (splitmix64 on BigInt state), so that a seed always
 // produces the same tournament with this program.
@@ -129,7 +129,7 @@ export function generate({ model = null, config = null, configText = null, seed:
       ? BigInt(firstSeed)
       : BigInt(Date.now()) * 1000000n + BigInt(Math.floor(Math.random() * 1000000));
     if (config !== null) {
-      if (!existsSync(config)) throw new JaVaFoError(`java.io.FileNotFoundException: ${config} (The system cannot find the file specified)`);
+      if (!existsSync(config)) throw new PairingError(`Cannot read file ${config}`);
       props = readProperties(readFileSync(config, 'utf8'));
     } else if (configText !== null) {
       props = readProperties(configText);

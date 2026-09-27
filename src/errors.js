@@ -1,23 +1,21 @@
-export class JaVaFoError extends Error {
+export class PairingError extends Error {
   constructor(message, detail) {
     super(message);
-    this.name = 'JaVaFoError';
+    this.name = 'PairingError';
     this.detail = detail;
   }
 }
 
-// Invalid input (TRF format, number of rounds...). Reported like JaVaFo, whose
-// class for these errors is called B.A.B.E in its (obfuscated) jar.
-export class InputError extends JaVaFoError {
+// Invalid input (TRF format, number of rounds...).
+export class InputError extends PairingError {
   constructor(message, detail) {
     super(message, detail);
     this.name = 'InputError';
-    this.label = `B.A.B.E: ${message}`;
   }
 }
 
 // Raised when no complete round-pairing exists (A.9: the arbiter has to decide).
-export class PairingImpossibleError extends JaVaFoError {
+export class PairingImpossibleError extends PairingError {
   constructor() {
     super('Pairing impossible under the current rules - intervene manually');
     this.name = 'PairingImpossibleError';

@@ -1,28 +1,42 @@
-# javafo-js
+# Pairforge
 
-Een stand-alone JavaScript-nabouw van **JaVaFo 2.2** (build 3222), de indelingsmotor voor het
-FIDE (Dutch) Swiss-systeem (FIDE Handbook C.04.3, regels van 2017). Geen afhankelijkheden:
-alleen Node.js (>= 18).
-
-Het doel is identiek gedrag: dezelfde indeling, dezelfde bestanden, byte voor byte. Dat is
-gecontroleerd door de originele `javafo.jar` en deze versie op tienduizenden rondes naast elkaar
-te laten draaien (zie [Verificatie](#verificatie)).
+Een indelingsprogramma voor het FIDE (Dutch) Swiss-systeem (FIDE Handbook C.04.3, regels van
+2017), geschreven in JavaScript. Het gedraagt zich als **JaVaFo 2.2** (build 3222) van Roberto
+Ricca: dezelfde commandoregel, dezelfde invoer en byte voor byte dezelfde indelingen, check-lists
+en checker-uitvoer. Dat is gecontroleerd door de originele `javafo.jar` en Pairforge op
+tienduizenden rondes naast elkaar te laten draaien (zie [Verificatie](#verificatie)). Er is geen
+code van JaVaFo gebruikt; de jar diende alleen als referentie om tegen te testen.
 
 ## Gebruik
 
-De command line is gelijk aan die van `javafo.jar`:
+Eén bestand, niets te installeren: `pairforge.exe` (Windows). De commandoregel is gelijk aan die
+van `javafo.jar`:
 
 ```bash
-node bin/javafo.js toernooi.trfx -p indeling.txt
+pairforge.exe toernooi.trfx -p indeling.txt
 ```
 
 ```
-javafo [-r]
-javafo [-r] input-file -c [round-number]
-javafo [-r] input-file [-b] -p [output-file] [-l [check-list-file]]
-javafo [-r] [model-file] -g [-b] -o trf-file
-javafo [-r] -g config-file|seed [-b] -o trf-file
+pairforge [-r]
+pairforge [-r] input-file -c [round-number]
+pairforge [-r] input-file [-b] -p [output-file] [-l [check-list-file]]
+pairforge [-r] [model-file] -g [-b] -o trf-file
+pairforge [-r] -g config-file|seed [-b] -o trf-file
 ```
+
+Met Node.js (>= 18) kan het ook zonder exe: `node bin/pairforge.js …`.
+
+### De exe bouwen
+
+```bash
+npm install
+npm run build
+```
+
+Dit maakt `dist/pairforge.exe` (op macOS/Linux `dist/pairforge`, te bouwen op dat systeem): het
+programma gebundeld (esbuild) en in een kopie van Node geïnjecteerd (Node "single executable
+application"). Het bestand is niet digitaal ondertekend, dus Windows kan bij de eerste keer starten
+na downloaden een SmartScreen-waarschuwing geven.
 
 | optie | betekenis |
 |---|---|
@@ -35,7 +49,7 @@ javafo [-r] -g config-file|seed [-b] -o trf-file
 
 Relatieve uitvoerpaden worden, net als bij JaVaFo, opgelost ten opzichte van de map van het
 invoerbestand. Getallen in de check-list krijgen het decimaalteken van de systeemlocale (zoals
-Java); afdwingen kan met de omgevingsvariabele `JAVAFO_DECIMAL` (bijv. `JAVAFO_DECIMAL=.`).
+Java); afdwingen kan met de omgevingsvariabele `PAIRFORGE_DECIMAL` (bijv. `PAIRFORGE_DECIMAL=.`).
 
 ### Als bibliotheek
 
@@ -118,8 +132,10 @@ een toernooi van 1000 spelers en 9 rondes wordt in totaal in ~1 s ingedeeld, waa
 ~5 s over doet. Het meeste werk doet de snelle route; de exacte matching is alleen nodig in groepen
 waar de onvermijdelijke kleurconflicten of floats de ondergrens niet halen.
 
-## Bekende verschillen
+## Bekende verschillen met JaVaFo
 
+* **Programmanaam**: de laatste regel van de check-list en de uitvoer van `-r` noemen Pairforge in
+  plaats van JaVaFo. Verder is de check-list byte voor byte gelijk.
 * **Generator (`-g`)**: zelfde parameters, bestandsformaat en uitslagkansen (O. Milvang, 2016),
   maar een seed levert niet hetzelfde bestand op als bij JaVaFo: daarvoor zou de interne
   toevalsgenerator van de (geobfusceerde) jar nagemaakt moeten worden.
@@ -130,7 +146,7 @@ waar de onvermijdelijke kleurconflicten of floats de ondergrens niet halen.
   nagebouwd. Waar JaVaFo crasht (bijv. niet-doorlopende spelernummers) geeft deze versie gewoon een
   indeling; waar JaVaFo met een NullPointerException stopt omdat alle rondes al gespeeld zijn,
   geeft deze versie een leesbare foutmelding. In beide gevallen: exitcode 1 en geen uitvoerbestand.
-* Foutmeldingen volgen die van JaVaFo (`Error in processing (...)`), maar Java-specifieke teksten
-  zoals stack traces en gelokaliseerde systeemmeldingen worden niet nagebootst.
+* **Foutmeldingen** zijn eigen, korte teksten (`Error: ...`). Zoals bij JaVaFo komen ze op stdout,
+  eindigt het programma met exitcode 1 en wordt er geen uitvoerbestand gemaakt.
 
 Net als JaVaFo vereist indelen (`-p`, `-l`) een `XXR`-regel; de checker (`-c`) niet.

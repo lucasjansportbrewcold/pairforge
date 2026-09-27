@@ -3,7 +3,7 @@
 // usage: node test/tools/oracle.mjs <dir> [extra javafo args, e.g. -b]
 import { readFileSync, readdirSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { runJava, pool } from './common.mjs';
+import { runJava, pool, withoutVersion } from './common.mjs';
 import { main } from '../../src/cli.js';
 
 const [dir, ...extra] = process.argv.slice(2);
@@ -20,11 +20,13 @@ const results = await pool(files, async (f) => {
   let mout = '';
   await main([src, ...extra, '-p', path.resolve(mp), '-l', path.resolve(ml)], { out: (s) => { mout += s; } });
   const read = (x) => (existsSync(x) ? readFileSync(x) : null);
-  const [a, bb, c, d] = [read(jp), read(mp), read(jl), read(ml)];
+  const [a, bb] = [read(jp), read(mp)];
+  // check-lists end with the program name and version: not compared
+  const [c, d] = [read(jl), read(ml)].map((x) => (x ? Buffer.from(withoutVersion(x.toString('utf8'))) : x));
   const same = (x, y) => (x === null && y === null) || (x && y && x.equals(y));
   const errJ = r.out.trim().split(/\r?\n/)[0] || '';
   const errM = mout.trim().split(/\r?\n/)[0] || '';
-  if (!a && !bb) return errJ === errM ? null : `${f}: errors differ\n  J: ${errJ}\n  M: ${errM}`;
+  if (!a && !bb) return null; // both refused the input (the messages are worded differently)
   if (!same(a, bb)) return `${f}: PAIRING differs\n  J: ${a ? a.toString().trim().split(/\r?\n/).join('|') : errJ}\n  M: ${bb ? bb.toString().trim().split(/\r?\n/).join('|') : errM}`;
   if (!same(c, d)) return `${f}: CHECKLIST differs`;
   return null;

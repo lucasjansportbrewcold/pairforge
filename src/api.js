@@ -13,7 +13,7 @@ import { checklist } from './checklist.js';
 import { checkTournament } from './checker.js';
 import { pairingText } from './cli.js';
 import { generate } from './rtg.js';
-import { JaVaFoError } from './errors.js';
+import { PairingError } from './errors.js';
 
 export const PAIRING = 1000;
 export const PAIRING_WITH_BAKU = 1001;
@@ -45,7 +45,7 @@ export function exec(operation, ...params) {
     case PRE_PAIRING_CHECKLIST:
     case POST_PAIRING_CHECKLIST:
     case POST_PAIRING_WITH_BAKU_CHECKLIST: {
-      if (text === null) throw new JaVaFoError('No input tournament');
+      if (text === null) throw new PairingError('No input tournament');
       const t = Tournament.fromText(text);
       const baku = operation === PAIRING_WITH_BAKU || operation === POST_PAIRING_WITH_BAKU_CHECKLIST;
       t.assertPairable();
@@ -57,7 +57,7 @@ export function exec(operation, ...params) {
     }
     case CHECK_TOURNAMENT:
     case CHECK_ONE_ROUND: {
-      if (text === null) throw new JaVaFoError('No input tournament');
+      if (text === null) throw new PairingError('No input tournament');
       const t = Tournament.fromText(text);
       const lines = checkTournament(t, 'tournament', operation === CHECK_ONE_ROUND ? round : null);
       result = lines.map((l) => l + EOL).join('');
@@ -75,7 +75,7 @@ export function exec(operation, ...params) {
       break;
     }
     default:
-      throw new JaVaFoError(`Unknown operation ${operation}`);
+      throw new PairingError(`Unknown operation ${operation}`);
   }
   if (out) {
     out.write(result);

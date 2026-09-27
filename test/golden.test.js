@@ -25,7 +25,9 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith('.trfx'))) {
     if (name === 'baku') args.splice(1, 0, '-b');
     assert.equal(await main(args, { out: () => {} }), 0);
     assert.equal(read(p), read(path.join(dir, `${name}.pairing.txt`)));
-    assert.equal(read(l), read(path.join(dir, `${name}.list`)));
+    // the last line names the program (JaVaFo in the reference files)
+    const body = (s) => s.replace(/[^\n]*$/, '');
+    assert.equal(body(read(l)), body(read(path.join(dir, `${name}.list`))));
   });
 }
 

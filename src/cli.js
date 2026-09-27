@@ -12,7 +12,7 @@ import { Tournament } from './tournament.js';
 import { checklist } from './checklist.js';
 import { checkTournament } from './checker.js';
 import { VERSION } from './version.js';
-import { JaVaFoError, PairingImpossibleError } from './errors.js';
+import { PairingError, PairingImpossibleError } from './errors.js';
 
 const isOpt = (a) => a !== undefined && a.startsWith('-') && a.length > 1 && !/^-\d/.test(a);
 
@@ -33,7 +33,7 @@ export function parseArgs(argv) {
       case '-w': break;
       case '-q': if (next !== undefined && /^\d+$/.test(next)) i++; break;
       default:
-        if (isOpt(a)) throw new JaVaFoError(`Unknown option ${a}`);
+        if (isOpt(a)) throw new PairingError(`Unknown option ${a}`);
         if (o.input === null) o.input = a;
         break;
     }
@@ -49,13 +49,13 @@ function resolveOut(file, input) {
 
 function writeChecked(file, text) {
   const dir = path.dirname(file);
-  if (dir && !existsSync(dir)) throw new JaVaFoError(`${dir} does not exist`);
+  if (dir && !existsSync(dir)) throw new PairingError(`${dir} does not exist`);
   writeFileSync(file, text);
 }
 
 function readInput(file) {
   if (!existsSync(file) || statSync(file).isDirectory()) {
-    throw new JaVaFoError(`java.io.FileNotFoundException: ${file} (The system cannot find the file specified)`);
+    throw new PairingError(`Cannot read file ${file}`);
   }
   return readFileSync(file, 'utf8');
 }
@@ -79,7 +79,7 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s) }) {
       const { generate } = await import('./rtg.js');
       const model = o.input ? readInput(o.input) : null;
       const text = generate({ model, config: o.genArg, baku: o.baku });
-      if (!o.trfOut) throw new JaVaFoError('No output specified for the generated tournament');
+      if (!o.trfOut) throw new PairingError('No output specified for the generated tournament');
       writeChecked(o.trfOut, text);
       return 0;
     }
@@ -111,13 +111,12 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s) }) {
     return 0;
   } catch (e) {
     if (e instanceof PairingImpossibleError) {
-      io.out(`java.lang.Exception: ${e.message}${EOL}Assertion Error (java.lang.AssertionError)${EOL}Ask for help to javafo@rrweb.org${EOL}`);
-    } else if (e instanceof JaVaFoError && e.message === 'Assertion Error') {
-      io.out(`Assertion Error (java.lang.AssertionError)${EOL}Ask for help to javafo@rrweb.org${EOL}`);
+      io.out(`Error: ${e.message}${EOL}`);
+    } else if (e instanceof PairingError) {
+      io.out(`Error: ${e.message}${e.detail ? ` (${e.detail})` : ''}${EOL}`);
     } else {
-      const msg = e instanceof JaVaFoError ? (e.label ?? e.message) : `${e.name}: ${e.message}`;
-      io.out(`Error in processing (${msg})${EOL}Ask for help to javafo@rrweb.org${EOL}`);
-      if (!(e instanceof JaVaFoError) && process.env.JAVAFO_DEBUG) io.out(e.stack + EOL);
+      io.out(`Error: ${e.name}: ${e.message}${EOL}`);
+      if (process.env.PAIRFORGE_DEBUG) io.out(e.stack + EOL);
     }
     return 1;
   }

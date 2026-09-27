@@ -3,7 +3,7 @@
 import { SCALE } from './state.js';
 
 function localeDecimalSeparator() {
-  const env = process.env.JAVAFO_DECIMAL;
+  const env = process.env.PAIRFORGE_DECIMAL;
   if (env) return env;
   try {
     const parts = new Intl.NumberFormat(undefined).formatToParts(1.5);

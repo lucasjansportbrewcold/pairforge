@@ -2,6 +2,9 @@
 javafo.jar
 javafo.bat
 node_modules/
+# build output
+dist/
+build/out/
 # generated test data
 test/work/
 *.log

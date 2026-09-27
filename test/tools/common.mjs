@@ -99,3 +99,8 @@ export function roundsIn(text) {
   }
   return n;
 }
+
+// A check-list without its last line (program name and version).
+export function withoutVersion(text) {
+  return text.replace(/[^\r\n]*$/, '');
+}

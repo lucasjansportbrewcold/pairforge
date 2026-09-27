@@ -395,7 +395,7 @@ class BracketModel {
     // nobody does; when exactly one player must float, the value of the
     // following bracket is computed per possible floater. Only otherwise the
     // following bracket becomes part of the model.
-    if (cfg.mode === 'normal' && extra.length && !process.env.JVF_FULLC7) {
+    if (cfg.mode === 'normal' && extra.length && !process.env.PAIRFORGE_FULLC7) {
       const floating = B.length - 2 * this.pairsInside(B, isMdp);
       if (floating === 0) extra = [];
       else if (floating === 1) {

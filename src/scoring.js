@@ -1,6 +1,6 @@
 // Scoring point system: explicit (XXS) or inferred from the Points field.
 
-import { JaVaFoError } from './errors.js';
+import { PairingError } from './errors.js';
 
 export const CODES = ['WW', 'BW', 'WD', 'BD', 'WL', 'BL', 'ZPB', 'HPB', 'FPB', 'PAB', 'FW', 'FL'];
 export const IDX = Object.fromEntries(CODES.map((c, i) => [c, i]));
@@ -57,7 +57,7 @@ export function explicitScoring(entries) {
   for (const [code, value] of entries) {
     if (SHORTCUTS[code]) for (const c of SHORTCUTS[code]) v[IDX[c]] = value;
     else if (code in IDX) v[IDX[code]] = value;
-    else throw new JaVaFoError(`Unknown scoring code '${code}'`);
+    else throw new PairingError(`Unknown scoring code '${code}'`);
   }
   return new ScoringSystem(v);
 }
@@ -112,7 +112,7 @@ export function buildScoring(data) {
     for (const p of data.players) {
       const total = p.games.reduce((s, g) => s + sys.points(g), 0);
       if (!near(total, p.points)) {
-        throw new JaVaFoError('Assertion Error', `Points of player ${p.id} do not match the XXS scoring system`);
+        throw new PairingError(`Points of player ${p.id} do not match the XXS scoring system`);
       }
     }
     return sys;

@@ -1,1 +1,3 @@
-export const VERSION = 'JaVaFo (rrweb.org/javafo) - Rel. 2.2 (Build 3222)';
+export const NAME = 'Pairforge';
+export const RELEASE = '1.0.0';
+export const VERSION = `${NAME} ${RELEASE} - FIDE (Dutch) Swiss pairing engine`;

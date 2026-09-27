@@ -155,7 +155,7 @@ export class Tournament {
       lastRound,
       initialWhite: this.initialWhite(round, opts.checking),
       forbidden: this.forbiddenPairs(),
-      noFastPath: opts.noFastPath || process.env.JAVAFO_NOFAST === "1",
+      noFastPath: opts.noFastPath || process.env.PAIRFORGE_NOFAST === "1",
     });
     const pairs = sortBoards(res.pairs);
     return { round, pairs, bye: res.bye, players, lastRound, maxPerRound: this.scoring.maxPerRound };

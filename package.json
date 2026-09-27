@@ -1,10 +1,21 @@
 {
-  "name": "javafo-js",
-  "version": "2.2.0",
-  "description": "JavaScript re-implementation of the JaVaFo pairing engine (FIDE Dutch system, 2017 rules)",
+  "name": "pairforge",
+  "version": "1.0.0",
+  "description": "Pairforge: FIDE (Dutch) Swiss pairing engine, compatible with JaVaFo 2.2 (2017 rules)",
   "type": "module",
-  "bin": { "javafo": "bin/javafo.js" },
-  "scripts": { "test": "node --test \"test/*.test.js\"" },
-  "engines": { "node": ">=18" },
-  "license": "UNLICENSED"
+  "bin": {
+    "pairforge": "bin/pairforge.js"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "build": "node build/build.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
+  }
 }
