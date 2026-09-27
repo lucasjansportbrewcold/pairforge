@@ -117,16 +117,22 @@ function formatPoints(x) {
   return s.replace('.', decimalSeparator());
 }
 
-export function generate({ model = null, config = null, baku = false } = {}) {
+// config: a configuration file name or a seed (a long integer); configText: the
+// contents of a configuration; seed: explicit seed (FirstSeed).
+export function generate({ model = null, config = null, configText = null, seed: firstSeed = null, baku = false } = {}) {
   let seed;
   let props = {};
   if (config !== null && /^\d+$/.test(config)) {
     seed = BigInt(config);
   } else {
-    seed = BigInt(Date.now()) * 1000000n + BigInt(Math.floor(Math.random() * 1000000));
+    seed = firstSeed !== null && firstSeed !== undefined
+      ? BigInt(firstSeed)
+      : BigInt(Date.now()) * 1000000n + BigInt(Math.floor(Math.random() * 1000000));
     if (config !== null) {
       if (!existsSync(config)) throw new JaVaFoError(`java.io.FileNotFoundException: ${config} (The system cannot find the file specified)`);
       props = readProperties(readFileSync(config, 'utf8'));
+    } else if (configText !== null) {
+      props = readProperties(configText);
     }
   }
   const rng = new Rng(seed);

@@ -69,23 +69,23 @@ export class Tournament {
   // Initial colour: XXC white1/black1; otherwise, once round 1 has been played,
   // the one that rule E.5 must have used there (seen from the first pair of the
   // top player who had a coloured game); before that, the file/name hash.
+  // Like JaVaFo, this looks at the pairing-ids, also with XXC rank.
   initialWhite(round, checking = false) {
     const c = this.data.config;
     if (c.white1) return true;
     if (c.black1) return false;
     if (round > 1 || checking) {
-      const recs = this.data.players;
+      const recs = this.data.players.slice().sort((a, b) => a.id - b.id);
       const byId = this.data.byId;
       const inR1 = (r) => r.games[0] && (r.games[0].opp > 0 || r.games[0].code === 'U');
-      const e1 = this.e5Numbers(1, inR1);
-      const g = recs.filter((r) => r.games[0] && r.games[0].opp > 0 && 'wb'.includes(r.games[0].color))
-        .sort((a, b) => this.pnOf(a) - this.pnOf(b))[0];
+      const e1 = new Map(recs.filter(inR1).map((r, k) => [r.id, k + 1]));
+      const g = recs.find((r) => r.games[0] && r.games[0].opp > 0 && 'wb'.includes(r.games[0].color));
       if (g) {
         const o = byId.get(g.games[0].opp);
         let hi = g;
         if (o) {
           const sg = this.acceleration(g.id, 1), so = this.acceleration(o.id, 1);
-          if (so > sg || (so === sg && this.pnOf(o) < this.pnOf(g))) hi = o;
+          if (so > sg || (so === sg && o.id < g.id)) hi = o;
         }
         const hg = hi.games[0];
         if (hg && 'wb'.includes(hg.color) && e1.has(hi.id)) {

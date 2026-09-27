@@ -19,12 +19,39 @@ const SCORES = {
   'pab05': { W: 1, D: 0.5, L: 0, xxs: 'XXS PAB=.5' },
 };
 
+// Late entries: some players get empty first rounds; their opponents of those
+// rounds get a zero-point-bye instead of the game.
+function lateEntries(full, r) {
+  const lines = full.split(/\r?\n/);
+  const idx = new Map();
+  lines.forEach((l, i) => { if (l.startsWith('001')) idx.set(parseInt(l.substring(4, 8), 10), i); });
+  const ids = [...idx.keys()];
+  const k = 1 + Math.floor(rnd() * Math.min(6, ids.length / 4));
+  const upto = 1 + Math.floor(rnd() * (r - 1));
+  const setSlot = (i, round, txt) => {
+    const at = 91 + 10 * (round - 1);
+    const l = lines[i].padEnd(at + 10);
+    lines[i] = l.substring(0, at) + txt.padEnd(10) + l.substring(at + 10);
+  };
+  for (let n = 0; n < k; n++) {
+    const id = pick(ids);
+    for (let round = 1; round <= upto; round++) {
+      const at = 91 + 10 * (round - 1);
+      const s = lines[idx.get(id)].padEnd(at + 10).substring(at, at + 10);
+      const opp = parseInt(s.substring(0, 4), 10) || 0;
+      if (opp > 0 && idx.has(opp)) setSlot(idx.get(opp), round, '0000 - Z');
+      setSlot(idx.get(id), round, '');
+    }
+  }
+  return lines.map((l) => (l.startsWith('001') ? l.trimEnd() : l)).join('\n');
+}
+
 for (let n = 0; n < count; n++) {
   const f = files[n % files.length];
   const full = readFileSync(path.join(srcDir, f), 'utf8');
   const R = roundsIn(full);
   const r = 1 + Math.floor(rnd() * R);
-  const kinds = kind === 'mix' ? ['accel', 'forbid', 'rank', 'colour', 'absent', 'score'].filter(() => rnd() < 0.4) : [kind];
+  const kinds = kind === 'mix' ? ['accel', 'forbid', 'rank', 'colour', 'absent', 'score', 'late'].filter(() => rnd() < 0.4) : [kind];
   let scoring = null;
   if (kinds.includes('score')) scoring = SCORES[pick(Object.keys(SCORES))];
   const pointsOf = scoring ? (c, col, hasOpp) => {
@@ -36,7 +63,9 @@ for (let n = 0; n < count; n++) {
     if (c === 'F') return scoring.xxs.includes('FPB=0') ? 0 : scoring.W;
     return 0;
   } : undefined;
-  let text = truncateTrf(full, r, R, pointsOf);
+  let source = full;
+  if (kinds.includes('late') && r > 1) source = lateEntries(full, r);
+  let text = truncateTrf(source, r, R, pointsOf);
   let lines = text.trimEnd().split('\n');
   const players = lines.filter((l) => l.startsWith('001'));
   const ids = players.map((l) => parseInt(l.substring(4, 8), 10));
