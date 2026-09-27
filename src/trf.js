@@ -1,7 +1,7 @@
 // TRF(x) parsing: the FIDE Tournament Report File plus the JaVaFo extension codes
 // (XXR, XXC, XXA, XXP, XXZ, XXS).
 
-import { JaVaFoError } from './errors.js';
+import { InputError } from './errors.js';
 
 // Result codes allowed when there is no opponent (0000), and with an opponent.
 const BYE_CODES = 'UFHZ+-= ';
@@ -58,7 +58,7 @@ function parseNumber(text) {
   const t = text.trim().replace(',', '.');
   if (t === '') return 0;
   const v = Number(t);
-  if (!Number.isFinite(v)) throw new JaVaFoError(`Unexpected number '${text}'`);
+  if (!Number.isFinite(v)) throw new InputError(`Unexpected number '${text}'`);
   return v;
 }
 
@@ -67,7 +67,7 @@ function parsePlayerLine(line, pos) {
   p.line = line;
   p.pos = pos;
   const idText = line.substring(4, 8).trim();
-  if (!/^\d+$/.test(idText)) throw new JaVaFoError(`Unexpected format of player line: ${line}`);
+  if (!/^\d+$/.test(idText)) throw new InputError(`Unexpected format of player line: ${line}`);
   p.id = parseInt(idText, 10);
   p.sex = line.substring(9, 10).trim();
   p.title = line.substring(10, 13).trim();
@@ -80,7 +80,7 @@ function parsePlayerLine(line, pos) {
   try {
     p.points = parseNumber(line.substring(80, 84));
   } catch {
-    throw new JaVaFoError(`Unexpected format of player line: ${line}`);
+    throw new InputError(`Unexpected format of player line: ${line}`);
   }
   const rk = line.substring(85, 89).trim();
   p.rank = /^\d+$/.test(rk) ? parseInt(rk, 10) : 0;
@@ -90,16 +90,16 @@ function parsePlayerLine(line, pos) {
     const color = slot[5];
     const code = slot[7];
     if (oppText !== '' && !/^\d+$/.test(oppText)) {
-      throw new JaVaFoError(`Unexpected format of player line: ${line}`);
+      throw new InputError(`Unexpected format of player line: ${line}`);
     }
     const opp = oppText === '' ? 0 : parseInt(oppText, 10);
     if (opp === 0) {
       if (!BYE_CODES.includes(code)) {
-        throw new JaVaFoError(`Unexpected format of player line: ${line}`,
+        throw new InputError(`Unexpected format of player line: ${line}`,
           `Unknown bye result '${code}' in round ${i + 1}for player ${p.id}`);
       }
     } else if (!GAME_CODES.includes(code) || !'wb-'.includes(color)) {
-      throw new JaVaFoError(`Unexpected format of player line: ${line}`,
+      throw new InputError(`Unexpected format of player line: ${line}`,
         `Unknown game result '${code}' in round ${i + 1}for player ${p.id}`);
     }
     p.games.push(new Game(opp, opp === 0 && color === ' ' ? ' ' : color, code));
@@ -120,7 +120,7 @@ export function parseTrf(text) {
     const rest = line.substring(4);
     if (code === '001') {
       const p = parsePlayerLine(line, ++pos);
-      if (data.byId.has(p.id)) throw new JaVaFoError(`Duplicate player id ${p.id}`);
+      if (data.byId.has(p.id)) throw new InputError(`Duplicate player id ${p.id}`);
       data.players.push(p);
       data.byId.set(p.id, p);
       continue;
@@ -130,7 +130,7 @@ export function parseTrf(text) {
     switch (code) {
       case 'XXR': {
         const n = parseInt(rest.trim(), 10);
-        if (!Number.isFinite(n)) throw new JaVaFoError(`Unexpected XXR record: ${line}`);
+        if (!Number.isFinite(n)) throw new InputError(`Unexpected XXR record: ${line}`);
         data.totalRounds = n;
         break;
       }
@@ -163,7 +163,7 @@ export function parseTrf(text) {
       case 'XXS':
         for (const tok of rest.trim().split(/\s+/).filter(Boolean)) {
           const eq = tok.indexOf('=');
-          if (eq < 0) throw new JaVaFoError(`Unexpected XXS record: ${line}`);
+          if (eq < 0) throw new InputError(`Unexpected XXS record: ${line}`);
           data.scoring.push([tok.substring(0, eq).toUpperCase(), parseNumber(tok.substring(eq + 1))]);
         }
         break;

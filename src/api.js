@@ -48,6 +48,7 @@ export function exec(operation, ...params) {
       if (text === null) throw new JaVaFoError('No input tournament');
       const t = Tournament.fromText(text);
       const baku = operation === PAIRING_WITH_BAKU || operation === POST_PAIRING_WITH_BAKU_CHECKLIST;
+      t.assertPairable();
       const res = t.pair(undefined, { baku });
       if (operation === PAIRING || operation === PAIRING_WITH_BAKU) result = pairingText(res);
       else if (operation === PRE_PAIRING_CHECKLIST) result = checklist({ ...res, pairs: [], bye: null }, EOL);

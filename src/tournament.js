@@ -5,12 +5,25 @@ import { buildScoring } from './scoring.js';
 import { buildState, toUnits } from './state.js';
 import { pairRound, pairKey } from './dutch.js';
 import { initialColourIsWhite, fileBase } from './initialColour.js';
+import { InputError } from './errors.js';
 
 export class Tournament {
   constructor(data) {
     this.data = data;
     this.scoring = buildScoring(data);
     this.played = pairedRounds(data);
+    if (data.totalRounds && this.played > data.totalRounds) {
+      throw new InputError(`There are more rounds (${this.played}) than the defined maximum (${data.totalRounds})`);
+    }
+  }
+
+  // Pairing the next round needs XXR, and a round left to play.
+  assertPairable() {
+    const total = this.data.totalRounds;
+    if (!total) throw new InputError('Total number of rounds must be defined');
+    if (this.played >= total) {
+      throw new InputError(`There are more rounds (${this.played + 1}) than the defined maximum (${total})`);
+    }
   }
 
   // fileName (optional): the TRF file name, used for the initial colour choice

@@ -95,6 +95,7 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s) }) {
       io.out('No output specified for the pairing' + EOL);
       return 0;
     }
+    t.assertPairable();
     const res = t.pair(undefined, { baku: o.baku });
     if (o.pair) {
       const text = pairingText(res);
@@ -114,7 +115,7 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s) }) {
     } else if (e instanceof JaVaFoError && e.message === 'Assertion Error') {
       io.out(`Assertion Error (java.lang.AssertionError)${EOL}Ask for help to javafo@rrweb.org${EOL}`);
     } else {
-      const msg = e instanceof JaVaFoError ? e.message : `${e.name}: ${e.message}`;
+      const msg = e instanceof JaVaFoError ? (e.label ?? e.message) : `${e.name}: ${e.message}`;
       io.out(`Error in processing (${msg})${EOL}Ask for help to javafo@rrweb.org${EOL}`);
       if (!(e instanceof JaVaFoError) && process.env.JAVAFO_DEBUG) io.out(e.stack + EOL);
     }
