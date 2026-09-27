@@ -5,6 +5,15 @@ import { ABS } from './state.js';
 // A.2 order: higher score first, then lower pairing number.
 export const higherRanked = (a, b) => (a.score !== b.score ? a.score > b.score : a.pn < b.pn);
 
+// Strength of a colour preference for rule E.2.
+function rank(p) {
+  if (p.strength !== ABS) return p.strength;
+  const big = p.cd > 1 || p.cd < -1;
+  if (big && p.twice) return ABS + 3;
+  if (big) return ABS + 2;
+  return p.cd !== 0 ? ABS + 1 : ABS;
+}
+
 // Returns true when `a` gets white against `b`.
 export function whiteFor(a, b, initialWhite) {
   const [hi, lo] = higherRanked(a, b) ? [a, b] : [b, a];
@@ -24,14 +33,12 @@ function hiGetsWhite(hi, lo, initialWhite) {
     return pl === 'B';
   }
   if (ph && pl) {
-    // E.2 grant the stronger preference; both absolute: the wider colour difference
-    if (hi.strength !== lo.strength) {
-      return (hi.strength > lo.strength) === (ph === 'W');
-    }
-    if (hi.strength === ABS) {
-      const dh = Math.abs(hi.cd);
-      const dl = Math.abs(lo.cd);
-      if (dh !== dl) return (dh > dl) === (ph === 'W');
+    // E.2 grant the stronger preference. As JaVaFo does, absolute preferences
+    // are ranked (both conditions, colour difference, twice with |cd| = 1,
+    // twice), which takes the place of comparing the colour differences.
+    const sh = rank(hi), sl = rank(lo);
+    if (sh !== sl) {
+      return (sh > sl) === (ph === 'W');
     }
     // E.3 alternate to the most recent time one had white and the other black
     const ch = hi.colors;

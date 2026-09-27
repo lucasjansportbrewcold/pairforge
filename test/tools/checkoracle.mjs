@@ -12,6 +12,8 @@ const args = process.argv.slice(2);
 const dir = args[0];
 const mutate = args.includes('--mutate');
 const flip = args.includes('--flip');
+const fi = args.findIndex((a) => a.startsWith('--flips='));
+const flips = fi >= 0 ? parseInt(args[fi].slice(8), 10) : 1;
 const max = parseInt(args.find((a) => /^\d+$/.test(a)) || '100000', 10);
 const work = path.join(dir, '_chk');
 mkdirSync(work, { recursive: true });
@@ -69,9 +71,10 @@ const files = readdirSync(dir).filter((f) => f.endsWith('.trf')).sort().slice(0,
 const res = await pool(files, async (f) => {
   let text = readFileSync(path.join(dir, f), 'utf8');
   if (flip) {
-    const m = flipColours(text);
-    if (!m) return null;
-    text = m;
+    for (let k = 0; k < flips; k++) {
+      const m = flipColours(text);
+      if (m) text = m;
+    }
   }
   if (mutate) {
     let m = null;

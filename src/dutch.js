@@ -145,10 +145,11 @@ class Engine {
     }
     if (this.opts.lastRound && (a.topscorer || b.topscorer)) {
       for (const [p, c] of [[a, ca], [b, cb]]) {
-        const cd = p.cd + (c === 'W' ? 1 : -1);
-        if (cd > 2 || cd < -2) c8++;
-        // same colour three times: counted, like JaVaFo, as a player with the
-        // same colour in the last two games who does not get his preference
+        // like JaVaFo, both criteria are counted through the preference: a
+        // colour difference beyond 2 is a player with |cd| >= 2 not getting his
+        // preference, the same colour three times a player with the same colour
+        // in the last two games not getting it
+        if ((p.cd > 1 || p.cd < -1) && p.pref !== c) c8++;
         if (p.twice && p.pref !== c) c9++;
       }
     }
