@@ -14,7 +14,7 @@
 import { maxWeightMatching } from './blossom.js';
 import { maxCardinalityMatching } from './cardinality.js';
 import { whiteFor } from './colors.js';
-import { ABS, STRONG, SCALE } from './state.js';
+import { ABS, STRONG, MILD, SCALE } from './state.js';
 import { PairingImpossibleError } from './errors.js';
 
 const CLS_B = 0;     // pair inside the current bracket
@@ -172,14 +172,53 @@ class Engine {
     const res = residents.slice().sort((a, b) => a - b);
     if (md.length > res.length) return null;
     const last = this.opts.lastRound;
-    const clean = (i, j) => {
-      if (!this.ok(i, j)) return false;
-      const c = this.colorInfo(i, j);
-      return c.c10 === 0 && c.c11 === 0 && (!last || (c.c8 === 0 && c.c9 === 0));
-    };
     let budget = 2000 + 20 * (md.length + res.length);
     const used = new Uint8Array(this.n);
     const pairs = [];
+
+    // Colour preferences that cannot all be granted: with w players wanting
+    // white, b black, a indifferent and f floaters, at least
+    // ceil((|w-b| - a - f) / 2) pairs of the larger side meet (C.10); in each of
+    // them one player loses, which is a C.11 violation unless he is mild. The
+    // search may use exactly these unavoidable conflicts, and knows at every
+    // step how many of them the players still to pair will need.
+    const left = { w: 0, b: 0, a: 0, mw: 0, mb: 0 };
+    const take = (i, sign) => {
+      const p = ps[i];
+      if (p.pref === 'W') { left.w -= sign; if (p.strength === MILD) left.mw -= sign; }
+      else if (p.pref === 'B') { left.b -= sign; if (p.strength === MILD) left.mb -= sign; }
+      else left.a -= sign;
+    };
+    const bound = (f) => {
+      const excess = Math.abs(left.w - left.b) - left.a - f;
+      const c10 = excess > 0 ? Math.ceil(excess / 2) : 0;
+      const mild = left.w > left.b ? left.mw : left.b > left.w ? left.mb : 0;
+      return [c10, Math.max(0, c10 - mild)];
+    };
+    for (const i of md.concat(res)) take(i, -1);
+    const floating = md.length + res.length - 2 * (md.length + Math.floor((res.length - md.length) / 2));
+    const [max10, max11] = bound(floating);
+
+    // Tries the pair (x, y) with the conflicts used so far; returns the new
+    // totals, or null when the budgets cannot be met any more.
+    const tryPair = (x, y, u10, u11) => {
+      if (!this.ok(x, y)) return null;
+      const c = this.colorInfo(x, y);
+      if (last && (c.c8 || c.c9)) return null;
+      const v10 = u10 + c.c10, v11 = u11 + c.c11;
+      if (v10 > max10 || v11 > max11) return null;
+      take(x, 1); take(y, 1);
+      const [r10, r11] = bound(floating);
+      if (v10 + r10 > max10 || v11 + r11 > max11) { take(x, -1); take(y, -1); return null; }
+      used[x] = used[y] = 1;
+      pairs.push([x, y]);
+      return [v10, v11];
+    };
+    const undo = (x, y) => {
+      pairs.pop();
+      used[x] = used[y] = 0;
+      take(x, -1); take(y, -1);
+    };
 
     const leaf = (floaters) => {
       for (const f of floaters) {
@@ -192,12 +231,12 @@ class Engine {
     };
 
     // remainder (homogeneous): S1R = first P, transpositions of S2R in order
-    const remainder = () => {
+    const remainder = (u10, u11) => {
       const rem = res.filter((i) => !used[i]);
       const P = Math.floor(rem.length / 2);
       const S1 = rem.slice(0, P);
       const S2 = rem.slice(P);
-      const dfs = (k) => {
+      const dfs = (k, a10, a11) => {
         if (--budget < 0) return null;
         if (k === P) {
           const fl = S2.filter((i) => !used[i]);
@@ -205,44 +244,41 @@ class Engine {
         }
         const x = S1[k];
         for (const y of S2) {
-          if (used[y] || !clean(x, y)) continue;
-          used[y] = 1;
-          pairs.push([x, y]);
-          const r = dfs(k + 1);
+          if (used[y]) continue;
+          const v = tryPair(x, y, a10, a11);
+          if (!v) continue;
+          const r = dfs(k + 1, v[0], v[1]);
           if (r !== undefined) return r;
-          pairs.pop();
-          used[y] = 0;
+          undo(x, y);
         }
         return undefined;
       };
-      return dfs(0);
+      return dfs(0, u10, u11);
     };
 
     // MDP-pairing: every MDP paired, opponents taken in S2 (residents) order.
     // Only the first complete MDP-pairing is tried: a later one comes after all
     // the resident-exchanges of this one in the generation order.
     let attempted = false;
-    const dfsM = (k) => {
+    const dfsM = (k, u10, u11) => {
       if (--budget < 0) return null;
       if (k === md.length) {
         attempted = true;
-        const r = remainder();
+        const r = remainder(u10, u11);
         return r === undefined ? null : r;
       }
       const m = md[k];
       for (const r of res) {
-        if (used[r] || !clean(m, r)) continue;
-        if (ps[r].float1 === 'U' || ps[r].float2 === 'U') continue;
-        used[r] = 1;
-        pairs.push([m, r]);
-        const out = dfsM(k + 1);
+        if (used[r] || ps[r].float1 === 'U' || ps[r].float2 === 'U') continue;
+        const v = tryPair(m, r, u10, u11);
+        if (!v) continue;
+        const out = dfsM(k + 1, v[0], v[1]);
         if (out !== undefined || attempted) return out;
-        pairs.pop();
-        used[r] = 0;
+        undo(m, r);
       }
       return undefined;
     };
-    const floaters = dfsM(0);
+    const floaters = dfsM(0, 0, 0);
     if (!floaters) return null;
     return { pairs, floaters };
   }
