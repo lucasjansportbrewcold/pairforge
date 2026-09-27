@@ -4,7 +4,7 @@
   "description": "JavaScript re-implementation of the JaVaFo pairing engine (FIDE Dutch system, 2017 rules)",
   "type": "module",
   "bin": { "javafo": "bin/javafo.js" },
-  "scripts": { "test": "node --test test/" },
+  "scripts": { "test": "node --test \"test/*.test.js\"" },
   "engines": { "node": ">=18" },
   "license": "UNLICENSED"
 }

@@ -1,0 +1,31 @@
+checker-bye: Round #1
+checker-bye: Round #2
+checker-bye: Round #3
+checker-bye: Round #4
+  Checker pairings        Tournament pairings 
+      2 -  23                 18 -  23
+    PAB:   18                PAB:    2
+
+checker-bye: Round #5
+2 and 14 had inverted colors
+  Checker pairings        Tournament pairings 
+     12 -  18                 12 -  21
+     21 -  17                 18 -  17
+
+checker-bye: Round #6
+checker-bye: Round #7
+  Checker pairings        Tournament pairings 
+      2 -   3                  8 -   2
+      8 -  14                  7 -   3
+      7 -  21                 21 -  14
+
+checker-bye: Round #8
+  Checker pairings        Tournament pairings 
+     16 -  18                 16 -  10
+     23 -  10                 23 -  18
+
+checker-bye: Round #9
+10 and 18 had inverted colors
+  Checker pairings        Tournament pairings 
+
+checker-bye: Round #10
